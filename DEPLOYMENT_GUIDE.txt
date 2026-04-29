@@ -1,0 +1,274 @@
+UE BAGELS — STOCK MANAGER
+DEPLOYMENT GUIDE
+==========================================
+Covers: Palm Beach · Varsity Lakes · Miami
+==========================================
+
+
+WHAT YOU NEED BEFORE STARTING
+------------------------------
+- A computer or laptop (Mac, Windows, or Linux)
+- About 30 minutes
+- Your server details (if using a VPS)
+- OR a free account on Railway (easiest option — no server needed)
+
+This guide covers TWO options:
+  OPTION A — Railway (free cloud hosting, live in 10 minutes, no server needed)
+  OPTION B — Your own VPS/server (more control, ~$8/month)
+
+
+==========================================
+OPTION A: RAILWAY (RECOMMENDED — FASTEST)
+==========================================
+
+Railway is a free cloud platform that hosts your app online.
+No server management. No command line experience needed.
+
+STEP 1 — Create a free Railway account
+---------------------------------------
+1. Go to https://railway.app
+2. Click "Start a New Project"
+3. Sign up with your GitHub account (create one free at github.com if needed)
+
+STEP 2 — Upload your project to GitHub
+----------------------------------------
+1. Go to https://github.com and click the "+" button → "New repository"
+2. Name it: ue-bagels-stock
+3. Set it to Private
+4. Click "Create repository"
+5. On the next screen, click "uploading an existing file"
+6. Unzip the ue-stock.zip file on your computer
+7. Drag ALL the files and folders into the GitHub upload window:
+     - server.js
+     - package.json
+     - public/ (the whole folder)
+8. Click "Commit changes"
+
+STEP 3 — Deploy on Railway
+----------------------------
+1. Go back to https://railway.app
+2. Click "New Project" → "Deploy from GitHub repo"
+3. Select your ue-bagels-stock repository
+4. Railway will automatically detect it's a Node.js app and deploy it
+5. Wait about 2 minutes for the build to finish (you'll see a green tick)
+
+STEP 4 — Get your live URL
+----------------------------
+1. In Railway, click on your project
+2. Click "Settings" → "Domains" → "Generate Domain"
+3. Railway gives you a URL like: https://ue-bagels-stock-production.up.railway.app
+4. That's your live URL — open it on any phone or tablet
+
+STEP 5 — Test it works
+-----------------------
+1. Open the URL on your phone
+2. You should see the location selector (Palm Beach / Varsity Lakes / Miami)
+3. Tap a location, select FOH or BOH, and check items load correctly
+4. The green dot in the top-right means it's connected to the server
+
+
+
+==========================================
+OPTION B: YOUR OWN VPS SERVER
+==========================================
+
+Use this if you already have a server, or want to rent one.
+Recommended provider: DigitalOcean, Hetzner, or Vultr (~$6-8 AUD/month)
+
+STEP 1 — Rent a server (skip if you already have one)
+------------------------------------------------------
+1. Go to https://www.digitalocean.com (or hetzner.com)
+2. Create an account
+3. Click "Create Droplet" (DigitalOcean) or "Create Server" (Hetzner)
+4. Choose:
+     - Ubuntu 22.04 LTS
+     - Smallest plan (1GB RAM, 1 CPU — enough for this app)
+     - Region: Sydney (closest to Gold Coast)
+5. Add your SSH key OR choose a password
+6. Click Create — note down the IP address (e.g. 123.456.789.10)
+
+STEP 2 — Connect to your server
+---------------------------------
+On Mac/Linux, open Terminal and type:
+  ssh root@YOUR_SERVER_IP
+
+On Windows, download PuTTY from https://putty.org and connect to your IP.
+
+STEP 3 — Install Node.js on the server
+----------------------------------------
+Copy and paste these commands one at a time:
+
+  curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+  sudo apt install -y nodejs
+  node --version
+
+You should see something like: v18.19.0
+
+STEP 4 — Upload your project files
+------------------------------------
+On your LOCAL computer (not the server), open Terminal or Command Prompt.
+
+Unzip ue-stock.zip, then upload it:
+
+  scp -r /path/to/ue-stock root@YOUR_SERVER_IP:/home/
+
+(Replace /path/to/ue-stock with the actual path where you unzipped it.
+On Mac it's usually: /Users/yourname/Downloads/ue-stock)
+
+STEP 5 — Install and start the app
+------------------------------------
+Back on the server (in your SSH window):
+
+  cd /home/ue-stock
+  npm install
+  node server.js
+
+You should see: "UE Bagels Stock Manager running on port 3000"
+
+Test it by opening: http://YOUR_SERVER_IP:3000 in your browser.
+You should see the location selector.
+
+Press Ctrl+C to stop the server for now.
+
+STEP 6 — Keep it running permanently with PM2
+-----------------------------------------------
+  npm install -g pm2
+  pm2 start server.js --name ue-stock
+  pm2 save
+  pm2 startup
+
+Follow any instructions PM2 prints after "pm2 startup".
+Now the app will restart automatically if the server reboots.
+
+STEP 7 — Set up a domain name (optional but recommended)
+----------------------------------------------------------
+Instead of typing an IP address, you can use a nice URL like:
+  stock.uebagels.com.au
+
+1. Log in to your domain registrar (where you bought your domain)
+2. Add a DNS "A record":
+     Name: stock
+     Value: YOUR_SERVER_IP
+3. Wait up to 1 hour for DNS to propagate
+
+Then install Nginx to handle the domain:
+
+  sudo apt install -y nginx
+  sudo nano /etc/nginx/sites-available/ue-stock
+
+Paste this (replace YOUR_DOMAIN with your actual domain):
+
+  server {
+      listen 80;
+      server_name YOUR_DOMAIN;
+      location / {
+          proxy_pass http://localhost:3000;
+          proxy_http_version 1.1;
+          proxy_set_header Upgrade $http_upgrade;
+          proxy_set_header Connection 'upgrade';
+          proxy_set_header Host $host;
+          proxy_cache_bypass $http_upgrade;
+      }
+  }
+
+Save (Ctrl+X, Y, Enter), then:
+
+  sudo ln -s /etc/nginx/sites-available/ue-stock /etc/nginx/sites-enabled/
+  sudo nginx -t
+  sudo systemctl restart nginx
+
+Now add HTTPS (free SSL certificate):
+
+  sudo apt install -y certbot python3-certbot-nginx
+  sudo certbot --nginx -d YOUR_DOMAIN
+
+Follow the prompts. Your app will now be available at https://YOUR_DOMAIN
+
+
+==========================================
+STEP 8 — SET UP AUTOMATIC DAILY BACKUPS
+==========================================
+
+This keeps a copy of your database every day.
+
+On the server, type:
+  crontab -e
+
+If it asks which editor, type 1 (nano) and press Enter.
+
+Add this line at the bottom:
+
+  0 3 * * * mkdir -p /home/backups && cp /home/ue-stock/stock.db /home/backups/stock_$(date +\%Y\%m\%d).db
+
+Save (Ctrl+X, Y, Enter).
+
+Now your database is backed up every day at 3am.
+
+
+==========================================
+STEP 9 — GIVE STAFF ACCESS
+==========================================
+
+Once deployed, staff access the app by opening the URL in any browser.
+No app install needed — works on iPhone, Android, iPad, and desktop.
+
+Recommended setup per location:
+1. Open the URL on the store's device (iPad or phone)
+2. The staff member taps their location (e.g. Varsity Lakes)
+3. Taps FOH or BOH
+4. Completes the count and saves to history
+
+The location selector resets each session, so if two people use the same
+device they just tap their location fresh each time.
+
+To make it easy to open:
+- On iPhone/iPad: tap Share → "Add to Home Screen" — it acts like an app
+- On Android: tap the menu (3 dots) → "Add to Home Screen"
+- You can also bookmark it in any browser
+
+
+==========================================
+CUSTOMISING EACH LOCATION'S LIST
+==========================================
+
+Each location starts with the same Palm Beach list.
+To customise Varsity Lakes or Miami:
+
+1. Open the URL and select that location
+2. Tap FOH or BOH
+3. Go to "Par Levels" tab
+4. Add, remove, or adjust items — changes only affect THAT location
+5. Changes save to the server immediately
+
+Par level changes are permanent and shared across all devices.
+
+
+==========================================
+TROUBLESHOOTING
+==========================================
+
+App shows "Could not connect to server":
+  → Check the server is running (pm2 list on the server)
+  → Check the URL is correct
+  → Check your internet connection
+
+Green dot not showing in top-right corner:
+  → This means the app can't reach the server
+  → The app will still work but counts won't save to the server
+
+Items not loading:
+  → Refresh the page
+  → Check server is running
+
+Lost data / want to restore from backup:
+  → On server: cp /home/backups/stock_YYYYMMDD.db /home/ue-stock/stock.db
+  → Replace YYYYMMDD with the date you want to restore to
+  → Restart: pm2 restart ue-stock
+
+
+==========================================
+SUPPORT CONTACT
+==========================================
+
+For technical issues with this system, refer back to the Claude conversation
+where it was built — you can paste error messages and get help debugging.

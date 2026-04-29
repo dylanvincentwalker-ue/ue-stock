@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>UE Bagels — Stock Manager</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:system-ui,-apple-system,sans-serif;background:#f2f2f0;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:1.5rem}
+.logo{font-size:13px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:0.12em;margin-bottom:8px;text-align:center}
+.title{font-size:26px;font-weight:700;color:#1a1a1a;text-align:center;margin-bottom:6px}
+.subtitle{font-size:14px;color:#888;text-align:center;margin-bottom:2.5rem}
+.locations{display:flex;flex-direction:column;gap:10px;width:100%;max-width:360px}
+.loc-btn{background:#fff;border:1.5px solid #e8e8e8;border-radius:16px;padding:18px 20px;cursor:pointer;text-align:left;transition:all 0.15s;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.loc-btn:hover{border-color:#1a1a1a;transform:translateY(-1px)}
+.loc-btn:active{transform:scale(0.98)}
+.loc-name{font-size:16px;font-weight:700;color:#1a1a1a}
+.loc-sub{font-size:12px;color:#aaa;margin-top:2px}
+.loc-arrow{font-size:18px;color:#bbb}
+.divider{display:flex;align-items:center;gap:10px;margin:1.5rem 0;width:100%;max-width:360px}
+.divider-line{flex:1;height:1px;background:#e8e8e8}
+.divider-txt{font-size:11px;color:#bbb;font-weight:600;text-transform:uppercase;letter-spacing:0.08em}
+.list-btns{display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%;max-width:360px}
+.list-btn{background:#1a1a1a;color:#fff;border:none;border-radius:12px;padding:14px 16px;cursor:pointer;font-size:13px;font-weight:700;text-align:center;transition:all 0.15s}
+.list-btn:hover{background:#333}
+.list-btn:active{transform:scale(0.97)}
+.list-btn.foh{background:#0c447c}
+.list-btn.foh:hover{background:#185FA5}
+.list-btn.boh{background:#3B6D11}
+.list-btn.boh:hover{background:#27500A}
+.status{font-size:11px;color:#bbb;text-align:center;margin-top:2rem}
+.status-dot{width:6px;height:6px;border-radius:50%;background:#bbb;display:inline-block;margin-right:5px;vertical-align:middle}
+.status-dot.online{background:#639922}
+</style>
+</head>
+<body>
+
+<div class="logo">UE Bagels</div>
+<div class="title">Stock Manager</div>
+<div class="subtitle">Select your location to begin</div>
+
+<div class="locations" id="locations">
+  <div class="loc-btn" onclick="selectLocation('palm-beach','Palm Beach')">
+    <div><div class="loc-name">Palm Beach</div><div class="loc-sub">FOH &amp; BOH ordering</div></div>
+    <span class="loc-arrow">›</span>
+  </div>
+  <div class="loc-btn" onclick="selectLocation('varsity-lakes','Varsity Lakes')">
+    <div><div class="loc-name">Varsity Lakes</div><div class="loc-sub">FOH &amp; BOH ordering</div></div>
+    <span class="loc-arrow">›</span>
+  </div>
+  <div class="loc-btn" onclick="selectLocation('miami','Miami')">
+    <div><div class="loc-name">Miami</div><div class="loc-sub">FOH &amp; BOH ordering</div></div>
+    <span class="loc-arrow">›</span>
+  </div>
+</div>
+
+<div id="list-select" style="display:none;width:100%;max-width:360px">
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+    <button onclick="back()" style="background:none;border:1.5px solid #ddd;border-radius:10px;padding:8px 14px;cursor:pointer;font-size:13px;color:#555;font-weight:600">← Back</button>
+    <div style="font-size:16px;font-weight:700;color:#1a1a1a" id="selected-loc-name"></div>
+  </div>
+  <div style="font-size:12px;color:#888;margin-bottom:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">Which list?</div>
+  <div class="list-btns">
+    <button class="list-btn foh" onclick="openList('foh')">
+      <div style="font-size:20px;margin-bottom:4px">☕</div>
+      FOH
+      <div style="font-size:10px;font-weight:500;opacity:0.8;margin-top:2px">Front of House</div>
+    </button>
+    <button class="list-btn boh" onclick="openList('boh')">
+      <div style="font-size:20px;margin-bottom:4px">🍳</div>
+      BOH
+      <div style="font-size:10px;font-weight:500;opacity:0.8;margin-top:2px">Back of House</div>
+    </button>
+  </div>
+</div>
+
+<div class="status"><span class="status-dot" id="status-dot"></span><span id="status-txt">Checking connection...</span></div>
+
+<script>
+let selectedSlug = '';
+
+function selectLocation(slug, name) {
+  selectedSlug = slug;
+  document.getElementById('locations').style.display = 'none';
+  document.getElementById('list-select').style.display = 'block';
+  document.getElementById('selected-loc-name').textContent = name;
+}
+
+function back() {
+  selectedSlug = '';
+  document.getElementById('locations').style.display = 'flex';
+  document.getElementById('list-select').style.display = 'none';
+}
+
+function openList(list) {
+  if (!selectedSlug) return;
+  // Store in sessionStorage so the checklist page knows which location
+  sessionStorage.setItem('ue_location', selectedSlug);
+  sessionStorage.setItem('ue_list', list);
+  window.location.href = list === 'foh' ? '/foh.html' : '/boh.html';
+}
+
+// Check server connectivity
+async function checkStatus() {
+  try {
+    const res = await fetch('/api/health');
+    if (res.ok) {
+      document.getElementById('status-dot').className = 'status-dot online';
+      document.getElementById('status-txt').textContent = 'Connected to server';
+    } else throw new Error();
+  } catch {
+    document.getElementById('status-dot').className = 'status-dot';
+    document.getElementById('status-txt').textContent = 'Server offline — check connection';
+  }
+}
+checkStatus();
+</script>
+</body>
+</html>

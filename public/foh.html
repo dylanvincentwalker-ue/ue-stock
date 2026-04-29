@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>FOH Stock Checklist</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:system-ui,-apple-system,sans-serif;background:#f2f2f0;color:#1a1a1a;min-height:100vh;padding-bottom:90px}
+.app-header{background:#0c447c;padding:0.85rem 1.1rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;position:sticky;top:0;z-index:200}
+.header-left{display:flex;align-items:center;gap:10px}
+.back-btn{background:rgba(255,255,255,0.15);border:none;border-radius:8px;padding:6px 12px;color:#fff;font-size:12px;font-weight:600;cursor:pointer}
+.back-btn:active{background:rgba(255,255,255,0.25)}
+.header-titles .app-title{font-size:14px;font-weight:700;color:#fff}
+.header-titles .app-sub{font-size:11px;color:rgba(255,255,255,0.7);margin-top:1px}
+.header-right{display:flex;align-items:center;gap:8px}
+.day-badge{font-size:11px;padding:4px 10px;border-radius:20px;font-weight:600}
+.weekend-badge{background:#faeeda;color:#633806}
+.weekday-badge{background:rgba(255,255,255,0.2);color:#fff}
+.sync-dot{width:7px;height:7px;border-radius:50%;background:#aaa;flex-shrink:0}
+.sync-dot.ok{background:#97C459}
+.sync-dot.err{background:#E24B4A}
+.sync-dot.saving{background:#EF9F27}
+.nav-tabs{display:flex;background:#fff;border-bottom:2px solid #e8e8e8;overflow-x:auto;position:sticky;top:56px;z-index:190}
+.tab-btn{padding:12px 16px;font-size:13px;font-weight:500;border:none;background:none;cursor:pointer;color:#888;border-bottom:3px solid transparent;white-space:nowrap;margin-bottom:-2px}
+.tab-btn.active{color:#1a1a1a;border-bottom-color:#0c447c;font-weight:700}
+.content{padding:1rem;max-width:820px;margin:0 auto}
+.progress-bar-wrap{background:#fff;border-radius:12px;padding:12px 14px;margin-bottom:12px;border:1px solid #e8e8e8}
+.progress-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.progress-label{font-size:12px;font-weight:600;color:#444}
+.progress-count{font-size:12px;color:#888}
+.progress-track{background:#eee;border-radius:20px;height:6px;overflow:hidden}
+.progress-fill{height:100%;border-radius:20px;background:#BA7517;transition:width 0.3s}
+.progress-fill.done{background:#639922}
+.day-row{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:12px}
+.day-pill{padding:7px 13px;border-radius:20px;border:1.5px solid #ddd;font-size:12px;font-weight:600;cursor:pointer;background:#fff;color:#888}
+.day-pill.active{background:#1a1a1a;color:#fff;border-color:#1a1a1a}
+.day-pill.weekend{border-color:#BA7517;color:#BA7517}
+.day-pill.weekend.active{background:#BA7517;color:#fff;border-color:#BA7517}
+.legend{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.legend-item{display:flex;align-items:center;gap:4px;font-size:11px;color:#777}
+.dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.dot-ok{background:#639922}.dot-low{background:#BA7517}.dot-crit{background:#E24B4A}.dot-over{background:#378ADD}.dot-none{background:#ccc}
+.cat-block{margin-bottom:14px}
+.cat-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:7px;padding:0 2px}
+.cat-label{font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.08em}
+.cat-ok-btn{font-size:11px;padding:5px 12px;border-radius:20px;border:1px solid #ddd;background:#fff;color:#639922;cursor:pointer;font-weight:600}
+.cat-ok-btn:active{background:#EAF3DE}
+.stock-card{background:#fff;border:1px solid #e8e8e8;border-radius:14px;overflow:hidden}
+.stock-row{display:grid;grid-template-columns:1fr auto auto;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid #f2f2f0}
+.stock-row:last-child{border-bottom:none}
+.stock-row.missing{background:#fff8f8;border-left:3px solid #E24B4A}
+.item-name{font-size:13px;font-weight:500;line-height:1.3}
+.item-par{font-size:10px;color:#aaa;margin-top:2px}
+.item-par.req{color:#E24B4A;font-weight:600}
+.qty-ctrl{display:flex;align-items:center;gap:6px}
+.qbtn{width:36px;height:36px;border-radius:50%;border:1.5px solid #ddd;background:#fafafa;cursor:pointer;font-size:20px;display:flex;align-items:center;justify-content:center;color:#555;line-height:1;flex-shrink:0;font-weight:300}
+.qbtn:active{transform:scale(0.9);background:#e8e8e8}
+.qinput{width:56px;text-align:center;font-size:15px;font-weight:600;border:1.5px solid #ddd;border-radius:10px;padding:5px 4px;background:#fff;color:#1a1a1a;-moz-appearance:textfield}
+.qinput::-webkit-inner-spin-button,.qinput::-webkit-outer-spin-button{-webkit-appearance:none}
+.qinput:focus{outline:none;border-color:#0c447c}
+.qinput.filled{border-color:#639922;background:#f9fff5}
+.sdot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.s-ok{background:#639922}.s-low{background:#BA7517}.s-crit{background:#E24B4A}.s-over{background:#378ADD}.s-none{background:#ddd}
+.sticky-footer{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid #e8e8e8;padding:10px 1rem;z-index:300}
+.sfinner{max-width:820px;margin:0 auto;display:flex;align-items:center;gap:10px}
+.fp{flex:1;min-width:0}
+.fpt{font-size:11px;color:#888;margin-bottom:3px}
+.fpb{background:#eee;border-radius:10px;height:5px;overflow:hidden}
+.fpf{height:100%;border-radius:10px;background:#639922;transition:width 0.3s}
+.vrb{padding:11px 18px;font-size:13px;font-weight:700;border-radius:12px;border:none;background:#0c447c;color:#fff;cursor:pointer;white-space:nowrap;flex-shrink:0}
+.summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-bottom:14px}
+.metric{background:#fff;border:1px solid #e8e8e8;border-radius:12px;padding:12px 14px}
+.metric-lbl{font-size:11px;color:#888;margin-bottom:4px;font-weight:500}
+.metric-val{font-size:24px;font-weight:700}
+.c-ok{color:#3B6D11}.c-low{color:#854F0B}.c-crit{color:#A32D2D}.c-tot{color:#1a1a1a}
+.report-card{background:#fff;border:1px solid #e8e8e8;border-radius:14px;overflow:hidden;margin-bottom:10px}
+.rcard-head{padding:11px 14px;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;justify-content:space-between;background:#fafafa}
+.rcat-name{font-size:13px;font-weight:600}
+.rcat-count{font-size:11px;color:#888}
+.rcol-head{display:grid;grid-template-columns:1fr 66px 66px 80px;gap:6px;padding:6px 14px;font-size:10px;color:#aaa;font-weight:700;border-bottom:1px solid #f0f0f0;text-transform:uppercase;letter-spacing:0.05em}
+.rrow{display:grid;grid-template-columns:1fr 66px 66px 80px;gap:6px;align-items:center;padding:10px 14px;border-bottom:1px solid #f8f8f8;font-size:12px}
+.rrow:last-child{border-bottom:none}
+.ritem{font-weight:500;font-size:12px;line-height:1.3}
+.rhave,.rneed{color:#888;font-size:12px}
+.rbadge{font-size:11px;font-weight:600;padding:3px 8px;border-radius:8px;white-space:nowrap;display:inline-block;text-align:center}
+.b-ok{background:#EAF3DE;color:#173404}.b-low{background:#FAEEDA;color:#4a2800}.b-crit{background:#FCEBEB;color:#501313}
+.banner{border-radius:12px;padding:11px 14px;font-size:13px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.banner-warn{background:#fff8e6;border:1.5px solid #EF9F27;color:#633806}
+.banner-ok{background:#EAF3DE;border:1.5px solid #97C459;color:#173404}
+.action-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;padding-bottom:24px}
+.abtn{padding:10px 16px;font-size:13px;border-radius:10px;border:1.5px solid #ddd;background:#fff;cursor:pointer;color:#555;font-weight:500}
+.abtn:active{background:#f0f0f0}
+.abtn-save{background:#3B6D11;color:#fff;border-color:#3B6D11;font-weight:700}
+.abtn-print{background:#1a1a1a;color:#fff;border-color:#1a1a1a;font-weight:700}
+.abtn-danger{color:#A32D2D;border-color:#f09595;margin-left:auto}
+.history-entry{background:#fff;border:1px solid #e8e8e8;border-radius:14px;margin-bottom:10px;overflow:hidden}
+.history-head{padding:13px 14px;display:flex;align-items:flex-start;justify-content:space-between;gap:10px;cursor:pointer;user-select:none}
+.history-head:active{background:#fafafa}
+.history-meta{font-size:13px;font-weight:700;color:#1a1a1a}
+.history-date{font-size:11px;color:#888;margin-top:2px}
+.hbadges{display:flex;gap:5px;margin-top:6px;flex-wrap:wrap}
+.hbadge{font-size:11px;padding:3px 9px;border-radius:20px;font-weight:600}
+.hb-crit{background:#FCEBEB;color:#501313}.hb-low{background:#FAEEDA;color:#4a2800}.hb-ok{background:#EAF3DE;color:#173404}.hb-neu{background:#f0f0f0;color:#555}
+.history-body{border-top:1px solid #f0f0f0;display:none}
+.history-body.open{display:block}
+.history-actions{padding:10px 14px;display:flex;gap:8px;border-top:1px solid #f0f0f0;background:#fafafa;flex-wrap:wrap}
+.chevron{font-size:11px;color:#bbb;transition:transform 0.2s;margin-top:3px;flex-shrink:0}
+.chevron.open{transform:rotate(180deg)}
+.empty-state{text-align:center;padding:3rem 1rem;color:#bbb}
+.settings-card{background:#fff;border:1px solid #e8e8e8;border-radius:14px;margin-bottom:10px;overflow:hidden}
+.scol-head{display:grid;grid-template-columns:1fr 60px 60px 60px 32px;gap:6px;padding:8px 14px;font-size:10px;color:#aaa;font-weight:700;background:#fafafa;border-bottom:1px solid #f0f0f0;text-transform:uppercase;letter-spacing:0.05em}
+.srow{display:grid;grid-template-columns:1fr 60px 60px 60px 32px;gap:6px;align-items:center;padding:10px 14px;border-bottom:1px solid #f8f8f8;font-size:12px}
+.srow:last-child{border-bottom:none}
+.sinput{width:100%;text-align:center;font-size:13px;border:1.5px solid #ddd;border-radius:8px;padding:5px 3px;background:#fff;color:#1a1a1a;-moz-appearance:textfield}
+.sinput::-webkit-inner-spin-button,.sinput::-webkit-outer-spin-button{-webkit-appearance:none}
+.sinput:focus{outline:none;border-color:#0c447c}
+.dbtn{width:28px;height:28px;border-radius:50%;border:1.5px solid #ddd;background:#fff;cursor:pointer;color:#bbb;font-size:15px;display:flex;align-items:center;justify-content:center}
+.dbtn:active{background:#FCEBEB;color:#A32D2D}
+.add-form{background:#f9f9f7;border:1.5px dashed #ddd;border-radius:12px;padding:12px;margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end}
+.fg{display:flex;flex-direction:column;gap:4px}
+.flbl{font-size:10px;color:#888;font-weight:700;text-transform:uppercase;letter-spacing:0.04em}
+.finput{font-size:13px;border:1.5px solid #ddd;border-radius:8px;padding:7px 9px;background:#fff;color:#1a1a1a}
+.finput.w-lg{width:160px}.finput.w-sm{width:70px}
+.fselect{font-size:13px;border:1.5px solid #ddd;border-radius:8px;padding:7px 9px;background:#fff;color:#1a1a1a;width:180px}
+.finput:focus,.fselect:focus{outline:none;border-color:#0c447c}
+.scroll-to-missing{width:100%;padding:11px;font-size:13px;font-weight:700;border-radius:12px;border:1.5px solid #E24B4A;background:#FCEBEB;color:#A32D2D;cursor:pointer;margin-bottom:10px}
+.loading{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:4rem 1rem;color:#aaa}
+.spinner{width:32px;height:32px;border:3px solid #e8e8e8;border-top-color:#0c447c;border-radius:50%;animation:spin 0.8s linear infinite;margin-bottom:12px}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media(max-width:500px){
+  .rcol-head,.rrow{grid-template-columns:1fr 54px 76px}
+  .rneed{display:none}
+  .scol-head,.srow{grid-template-columns:1fr 52px 52px 52px 28px}
+}
+</style>
+</head>
+<body>
+
+<div class="app-header">
+  <div class="header-left">
+    <button class="back-btn" onclick="window.location.href='/'">← Locations</button>
+    <div class="header-titles">
+      <div class="app-title" id="hdr-title">FOH</div>
+      <div class="app-sub" id="hdr-sub">Loading...</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="sync-dot" id="sync-dot" title="Sync status"></div>
+    <span id="hdr-badge" class="day-badge weekday-badge"></span>
+  </div>
+</div>
+
+<div class="nav-tabs">
+  <button class="tab-btn active" onclick="showTab('count')" id="ntab-count">Stock Count</button>
+  <button class="tab-btn" onclick="showTab('report')" id="ntab-report">Order Report</button>
+  <button class="tab-btn" onclick="showTab('history')" id="ntab-history">History</button>
+  <button class="tab-btn" onclick="showTab('settings')" id="ntab-settings">Par Levels</button>
+</div>
+
+<div id="tab-count" class="content">
+  <div id="loading-count" class="loading"><div class="spinner"></div>Loading stock list...</div>
+  <div id="count-inner" style="display:none">
+    <div class="progress-bar-wrap">
+      <div class="progress-top"><span class="progress-label">Progress</span><span class="progress-count" id="prog-text">0 / 0</span></div>
+      <div class="progress-track"><div class="progress-fill" id="prog-fill" style="width:0%"></div></div>
+    </div>
+    <div style="margin-bottom:10px">
+      <div style="font-size:11px;color:#888;margin-bottom:6px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em">Counting stock for:</div>
+      <div class="day-row" id="day-row"></div>
+    </div>
+    <div class="legend">
+      <div class="legend-item"><span class="dot dot-ok"></span>OK</div>
+      <div class="legend-item"><span class="dot dot-low"></span>Low</div>
+      <div class="legend-item"><span class="dot dot-crit"></span>Critical</div>
+      <div class="legend-item"><span class="dot dot-over"></span>Over par</div>
+      <div class="legend-item"><span class="dot dot-none"></span>Not entered</div>
+    </div>
+    <div id="count-list"></div>
+  </div>
+</div>
+
+<div id="tab-report" class="content" style="display:none">
+  <div id="banner-unsaved" class="banner banner-warn" style="display:none">
+    <span style="font-weight:600">&#9888; Unsaved — tap Save to history when finished</span>
+    <button class="abtn abtn-save" onclick="saveToHistory()">Save to history</button>
+  </div>
+  <div id="banner-saved" class="banner banner-ok" style="display:none">
+    <span>&#10003; <span id="saved-txt"></span></span>
+  </div>
+  <div class="summary-grid" id="summary-grid"></div>
+  <div style="font-size:12px;color:#888;margin-bottom:12px;font-weight:500" id="rpt-sub"></div>
+  <button id="missing-btn" class="scroll-to-missing" style="display:none" onclick="goToMissing()">&#8679; Some items not yet entered — tap to go back</button>
+  <div id="report-list"></div>
+  <div class="action-row">
+    <button class="abtn abtn-print" onclick="printRpt()">Print / PDF</button>
+    <button class="abtn" onclick="copyRpt()">Copy text</button>
+    <button class="abtn abtn-save" onclick="saveToHistory()">Save to history</button>
+    <button class="abtn abtn-danger" onclick="resetAll()">Reset counts</button>
+  </div>
+</div>
+
+<div id="tab-history" class="content" style="display:none">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+    <div><div style="font-size:15px;font-weight:700">Saved reports</div><div style="font-size:11px;color:#888;margin-top:2px">Tap any entry to expand</div></div>
+    <button class="abtn" onclick="exportAll()">Export all (.txt)</button>
+  </div>
+  <div id="history-list"></div>
+</div>
+
+<div id="tab-settings" class="content" style="display:none">
+  <div style="font-size:12px;color:#888;margin-bottom:12px;line-height:1.6">Par levels for <strong id="settings-loc-name"></strong>. Changes only affect this location.</div>
+  <div id="settings-list"></div>
+</div>
+
+<div class="sticky-footer" id="sticky-footer">
+  <div class="sfinner">
+    <div class="fp">
+      <div class="fpt" id="footer-txt">0 of 0 required items counted</div>
+      <div class="fpb"><div class="fpf" id="footer-fill" style="width:0%"></div></div>
+    </div>
+    <button class="vrb" onclick="showTab('report')" id="footer-btn">View Report →</button>
+  </div>
+</div>
+
+<script>
+const DAYS=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+const WE=['Saturday','Sunday'];
+const isWE=d=>WE.includes(d);
+const CATS=['Packaging','Coffee Station','Fridge'];
+
+// Get location from sessionStorage (set by index.html)
+const LOC=sessionStorage.getItem('ue_location')||'palm-beach';
+const LOC_NAMES={'palm-beach':'Palm Beach','varsity-lakes':'Varsity Lakes','miami':'Miami'};
+const LOC_NAME=LOC_NAMES[LOC]||LOC;
+const API=`/api/${LOC}/foh`;
+
+function brisNow(){return new Date(new Date().toLocaleString('en-US',{timeZone:'Australia/Brisbane'}))}
+function brisDay(){const d=brisNow().getDay();return DAYS[d===0?6:d-1]}
+function brisDateStr(){return brisNow().toLocaleDateString('en-AU',{weekday:'short',day:'numeric',month:'short'})}
+
+let items=[];
+let selDay=brisDay();
+let hist=[];
+let dirty=false;
+let lastSaved=null;
+let saveTimer=null;
+
+// ── Sync indicator ────────────────────────────────────────────────────────────
+function setSyncStatus(status){
+  const dot=document.getElementById('sync-dot');
+  dot.className='sync-dot '+(status==='ok'?'ok':status==='err'?'err':'saving');
+  dot.title=status==='ok'?'Saved to server':status==='err'?'Save failed — check connection':'Saving...';
+}
+
+// ── Server API calls ──────────────────────────────────────────────────────────
+async function apiSaveCount(){
+  setSyncStatus('saving');
+  try{
+    await fetch(`${API}/count`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({day:selDay,items})});
+    setSyncStatus('ok');
+  }catch{setSyncStatus('err')}
+}
+
+async function apiLoadCount(){
+  try{
+    const res=await fetch(`${API}/count`);
+    return res.ok?await res.json():null;
+  }catch{return null}
+}
+
+async function apiLoadItems(){
+  const res=await fetch(`${API}/items`);
+  if(!res.ok)throw new Error('Failed to load items');
+  return await res.json();
+}
+
+async function apiAddItem(item){
+  const res=await fetch(`${API}/items`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(item)});
+  const data=await res.json();return data.id;
+}
+
+async function apiUpdateItem(id,data){
+  await fetch(`${API}/items/${id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+}
+
+async function apiDeleteItem(id){
+  await fetch(`${API}/items/${id}`,{method:'DELETE'});
+}
+
+async function apiSaveReport(snap){
+  const res=await fetch(`${API}/reports`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(snap)});
+  const data=await res.json();return data.id;
+}
+
+async function apiLoadReports(){
+  try{const res=await fetch(`${API}/reports`);return res.ok?await res.json():[];}catch{return[]}
+}
+
+async function apiDeleteReport(id){
+  await fetch(`${API}/reports/${id}`,{method:'DELETE'});
+}
+
+// ── Initialise ────────────────────────────────────────────────────────────────
+async function init(){
+  document.getElementById('hdr-title').textContent=`${LOC_NAME} — FOH`;
+  document.getElementById('settings-loc-name').textContent=LOC_NAME;
+  updateHeader();renderDays();
+
+  try{
+    // Load item definitions from server
+    const serverItems=await apiLoadItems();
+    // Load current count
+    const countData=await apiLoadCount();
+
+    // Merge: use server item definitions, overlay saved quantities
+    const qtyMap={};
+    if(countData&&countData.items){
+      countData.items.forEach(i=>qtyMap[i.id]=i.qty);
+      if(countData.day)selDay=countData.day;
+    }
+
+    items=serverItems.map(i=>({
+      id:i.id,cat:i.cat,name:i.name,unit:i.unit||'',
+      wdPar:i.wd_par||'',wePar:i.we_par||'',
+      qty:qtyMap[i.id]!==undefined?qtyMap[i.id]:''
+    }));
+
+    document.getElementById('loading-count').style.display='none';
+    document.getElementById('count-inner').style.display='block';
+    renderDays();renderCount();updateProgress();
+    setSyncStatus('ok');
+  }catch(e){
+    document.getElementById('loading-count').innerHTML='<div style="color:#A32D2D;font-size:13px">Could not connect to server.<br>Check your connection and refresh.</div>';
+    setSyncStatus('err');
+  }
+}
+
+// ── Auto-save with debounce ───────────────────────────────────────────────────
+function scheduleSave(){
+  clearTimeout(saveTimer);
+  saveTimer=setTimeout(apiSaveCount,800);
+}
+
+// ── Core helpers ──────────────────────────────────────────────────────────────
+const par=(item,day)=>{const p=isWE(day||selDay)?item.wePar:item.wdPar;return(p===''||p==null)?null:parseFloat(p)};
+const qty=(item)=>item.qty===''||item.qty==null?null:parseFloat(item.qty);
+const counted=(item)=>item.qty!==''&&item.qty!=null;
+const required=(item)=>par(item)!==null;
+const reqItems=()=>items.filter(required);
+const doneItems=()=>items.filter(i=>required(i)&&counted(i));
+const missingItems=()=>items.filter(i=>required(i)&&!counted(i));
+const fmt=n=>{if(n===null||n===undefined||n==='')return'—';const f=parseFloat(n);return f%1===0?String(parseInt(f)):parseFloat(f.toFixed(2)).toString()};
+function status(item){const p=par(item),q=qty(item);if(p===null||q===null)return'none';const r=q/p;return r>=1.1?'over':r>=1?'ok':r>=0.5?'low':'crit'}
+function order(item,day){const p=par(item,day),q=qty(item);if(p===null||q===null)return null;return Math.max(0,p-q)}
+
+function updateHeader(){
+  document.getElementById('hdr-sub').textContent=brisDateStr()+' · Brisbane';
+  const b=document.getElementById('hdr-badge');
+  b.textContent=isWE(selDay)?'Weekend pars':'Weekday pars';
+  b.className='day-badge '+(isWE(selDay)?'weekend-badge':'weekday-badge');
+}
+
+function updateProgress(){
+  const req=reqItems().length,done=doneItems().length;
+  const pct=req>0?Math.round(done/req*100):0;
+  document.getElementById('prog-text').textContent=`${done} / ${req} required items counted`;
+  const pf=document.getElementById('prog-fill');
+  pf.style.width=pct+'%';pf.className='progress-fill'+(pct===100?' done':'');
+  document.getElementById('footer-txt').textContent=`${done} of ${req} required items counted`;
+  document.getElementById('footer-fill').style.width=pct+'%';
+  document.getElementById('footer-btn').textContent=pct===100?'View Report ✓':'View Report →';
+}
+
+function renderDays(){
+  document.getElementById('day-row').innerHTML=DAYS.map(d=>
+    `<button class="day-pill ${d===selDay?'active':''} ${isWE(d)?'weekend':''}" onclick="selD('${d}')">${d.slice(0,3)}</button>`
+  ).join('');
+}
+
+function selD(d){selDay=d;dirty=true;updateHeader();renderDays();renderCount();scheduleSave()}
+
+function renderCount(){
+  let html='';
+  CATS.forEach(cat=>{
+    const ci=items.filter(i=>i.cat===cat);if(!ci.length)return;
+    const cReq=ci.filter(required).length,cDone=ci.filter(i=>required(i)&&counted(i)).length;
+    html+=`<div class="cat-block">
+      <div class="cat-header">
+        <span class="cat-label">${cat} &nbsp;${cDone}/${cReq}</span>
+        <button class="cat-ok-btn" onclick="catOk('${cat.replace(/'/g,"\\'")}')">All at par ✓</button>
+      </div>
+      <div class="stock-card">`;
+    ci.forEach(item=>{
+      const st=status(item),p=par(item),c=counted(item),miss=required(item)&&!c;
+      html+=`<div class="stock-row ${miss?'missing':''}" id="row-${item.id}">
+        <div>
+          <div class="item-name">${item.name}</div>
+          <div class="item-par ${miss?'req':''}" id="par-${item.id}">${miss?'Required — enter a quantity':(p!==null?`Par: ${fmt(p)} ${item.unit}`:'Count only')}</div>
+        </div>
+        <div class="qty-ctrl">
+          <button class="qbtn" onclick="adj(${item.id},-1)">−</button>
+          <input class="qinput${c?' filled':''}" type="number" min="0" step="0.5" value="${item.qty}" placeholder="—"
+            oninput="setQ(${item.id},this.value)" onchange="setQ(${item.id},this.value)" id="inp-${item.id}">
+          <button class="qbtn" onclick="adj(${item.id},1)">+</button>
+        </div>
+        <div class="sdot s-${st}" id="dot-${item.id}"></div>
+      </div>`;
+    });
+    html+=`</div></div>`;
+  });
+  document.getElementById('count-list').innerHTML=html||'<div class="empty-state">No items yet. Add them in Par Levels.</div>';
+  updateProgress();
+}
+
+function catOk(cat){
+  items.filter(i=>i.cat===cat&&required(i)&&!counted(i)).forEach(item=>{const p=par(item);if(p!==null)item.qty=String(p)});
+  dirty=true;scheduleSave();renderCount();
+}
+
+function adj(id,d){
+  const item=items.find(i=>i.id===id);if(!item)return;
+  const cur=item.qty===''?0:parseFloat(item.qty||0);
+  item.qty=String(Math.round(Math.max(0,cur+d)*10)/10);
+  dirty=true;scheduleSave();refreshRow(item);updateProgress();
+}
+
+function setQ(id,v){
+  const item=items.find(i=>i.id===id);if(!item)return;
+  item.qty=v;dirty=true;scheduleSave();refreshRow(item);updateProgress();
+}
+
+function refreshRow(item){
+  const inp=document.getElementById('inp-'+item.id);
+  const row=document.getElementById('row-'+item.id);
+  const dot=document.getElementById('dot-'+item.id);
+  const parEl=document.getElementById('par-'+item.id);
+  const c=counted(item),p=par(item);
+  if(inp){inp.value=item.qty;inp.className='qinput'+(c?' filled':'')}
+  if(row)row.classList.toggle('missing',required(item)&&!c);
+  if(dot)dot.className='sdot s-'+status(item);
+  if(parEl){parEl.className='item-par'+(required(item)&&!c?' req':'');parEl.textContent=required(item)&&!c?'Required — enter a quantity':(p!==null?`Par: ${fmt(p)} ${item.unit}`:'Count only')}
+}
+
+function goToMissing(){
+  const m=missingItems();if(!m.length)return;
+  showTab('count');
+  setTimeout(()=>{const el=document.getElementById('row-'+m[0].id);if(el)el.scrollIntoView({behavior:'smooth',block:'center'})},120);
+}
+
+function renderReport(){
+  const req=reqItems(),done=doneItems(),miss=missingItems();
+  const toOrd=items.filter(i=>{const o=order(i);return o!==null&&o>0});
+  const okItems=items.filter(i=>{const o=order(i);return o!==null&&o===0});
+  const critItems=items.filter(i=>status(i)==='crit');
+  const ub=document.getElementById('banner-unsaved'),sb=document.getElementById('banner-saved');
+  if(ub)ub.style.display=dirty&&done.length>0?'flex':'none';
+  if(sb)sb.style.display=!dirty&&lastSaved?'flex':'none';
+  if(sb&&lastSaved)document.getElementById('saved-txt').textContent='Last saved: '+lastSaved;
+  const mb=document.getElementById('missing-btn');if(mb)mb.style.display=miss.length>0?'block':'none';
+  document.getElementById('summary-grid').innerHTML=`
+    <div class="metric"><div class="metric-lbl">Items counted</div><div class="metric-val c-tot">${done.length}<span style="font-size:13px;color:#bbb;font-weight:400"> /${req.length}</span></div></div>
+    <div class="metric"><div class="metric-lbl">Sufficient</div><div class="metric-val c-ok">${okItems.length}</div></div>
+    <div class="metric"><div class="metric-lbl">Need ordering</div><div class="metric-val c-low">${toOrd.length}</div></div>
+    <div class="metric"><div class="metric-lbl">Critical</div><div class="metric-val c-crit">${critItems.length}</div></div>`;
+  const bn=brisNow();
+  document.getElementById('rpt-sub').textContent=`${LOC_NAME} · ${selDay} · ${bn.toLocaleDateString('en-AU',{day:'numeric',month:'long',year:'numeric'})} · ${isWE(selDay)?'Weekend':'Weekday'} pars`;
+  let html='';
+  CATS.forEach(cat=>{
+    const ci=items.filter(i=>i.cat===cat);if(!ci.length)return;
+    const catOrd=ci.filter(i=>{const o=order(i);return o!==null&&o>0});
+    const catMiss=ci.filter(i=>required(i)&&!counted(i));
+    html+=`<div class="report-card">
+      <div class="rcard-head"><span class="rcat-name">${cat}</span>
+        <span class="rcat-count">${catOrd.length} to order${catMiss.length?` · <span style="color:#E24B4A">${catMiss.length} missing</span>`:''}</span>
+      </div>
+      <div class="rcol-head"><span>Item</span><span>Have</span><span>Need</span><span>Order</span></div>`;
+    [...ci].sort((a,b)=>(order(b)??-1)-(order(a)??-1)).forEach(item=>{
+      const o=order(item),p=par(item),q=qty(item),st=status(item);
+      const notDone=required(item)&&!counted(item);
+      const bc=notDone?'b-crit':st==='crit'?'b-crit':st==='low'?'b-low':'b-ok';
+      const ol=notDone?'Not entered':o===null?'—':o>0?`+${fmt(o)} ${item.unit}`:'OK';
+      html+=`<div class="rrow"><span class="ritem">${item.name}</span>
+        <span class="rhave">${q!==null?fmt(q)+' '+item.unit:'—'}</span>
+        <span class="rneed">${p!==null?fmt(p)+' '+item.unit:'—'}</span>
+        <span class="rbadge ${bc}">${ol}</span></div>`;
+    });
+    html+=`</div>`;
+  });
+  document.getElementById('report-list').innerHTML=html;
+}
+
+async function saveToHistory(){
+  const miss=missingItems();
+  if(miss.length>0){
+    const ns=miss.slice(0,3).map(i=>i.name).join(', ')+(miss.length>3?` +${miss.length-3} more`:'');
+    if(!confirm(`${miss.length} required item(s) not yet entered:\n\n${ns}\n\nSave anyway?`))return;
+  }
+  const bn=brisNow();
+  const snap={
+    day:selDay,parType:isWE(selDay)?'Weekend':'Weekday',
+    label:bn.toLocaleDateString('en-AU',{weekday:'long',day:'numeric',month:'long',year:'numeric'}),
+    time:bn.toLocaleTimeString('en-AU',{hour:'2-digit',minute:'2-digit'}),
+    items:items.map(i=>({id:i.id,cat:i.cat,name:i.name,unit:i.unit,qty:i.qty,par:par(i),order:order(i)})),
+    summary:{counted:doneItems().length,total:reqItems().length,
+      critical:items.filter(i=>status(i)==='crit').length,
+      low:items.filter(i=>status(i)==='low').length,
+      ok:items.filter(i=>{const o=order(i);return o!==null&&o===0}).length,
+      toOrder:items.filter(i=>{const o=order(i);return o!==null&&o>0}).length,
+      missing:miss.length}
+  };
+  try{
+    setSyncStatus('saving');
+    const id=await apiSaveReport(snap);
+    snap.id=id;
+    hist.unshift(snap);
+    dirty=false;lastSaved=snap.label+' at '+snap.time;
+    setSyncStatus('ok');renderReport();
+    alert(`Saved! FOH report for ${LOC_NAME} — ${selDay} (${snap.time}) saved to server.`);
+  }catch{
+    setSyncStatus('err');
+    alert('Could not save to server. Check your connection and try again.');
+  }
+}
+
+async function renderHistory(){
+  hist=await apiLoadReports();
+  if(!hist.length){
+    document.getElementById('history-list').innerHTML=`<div class="empty-state"><div style="font-size:36px;margin-bottom:12px">📋</div><div style="font-weight:700;font-size:14px;color:#888;margin-bottom:6px">No saved reports yet</div><div style="font-size:12px">Complete a count then save from the Order Report tab</div></div>`;
+    return;
+  }
+  let html='';
+  hist.forEach((snap,idx)=>{
+    const cB=snap.summary.critical>0?`<span class="hbadge hb-crit">${snap.summary.critical} critical</span>`:'';
+    const lB=snap.summary.low>0?`<span class="hbadge hb-low">${snap.summary.low} low</span>`:'';
+    const oB=snap.summary.toOrder>0?`<span class="hbadge hb-ok">${snap.summary.toOrder} to order</span>`:'<span class="hbadge hb-neu">All OK</span>';
+    const mB=snap.summary.missing>0?`<span class="hbadge hb-crit">${snap.summary.missing} not entered</span>`:'';
+    html+=`<div class="history-entry">
+      <div class="history-head" onclick="togH(${idx})">
+        <div style="flex:1;min-width:0">
+          <div class="history-meta">${snap.day} — ${snap.label}</div>
+          <div class="history-date">Saved ${snap.time} · ${snap.par_type||snap.parType} pars · ${snap.summary.counted}/${snap.summary.total} items</div>
+          <div class="hbadges">${cB}${lB}${oB}${mB}</div>
+        </div>
+        <span class="chevron" id="chev-${idx}">&#9660;</span>
+      </div>
+      <div class="history-body" id="hbody-${idx}">${histBody(snap)}
+        <div class="history-actions">
+          <button class="abtn" onclick="prtSnap(${idx})">Print</button>
+          <button class="abtn" onclick="cpySnap(${idx})">Copy</button>
+          <button class="abtn abtn-danger" onclick="delSnap(${idx})" style="margin-left:auto">Delete</button>
+        </div>
+      </div>
+    </div>`;
+  });
+  document.getElementById('history-list').innerHTML=html;
+}
+
+function histBody(snap){
+  let html='';
+  CATS.forEach(cat=>{
+    const ci=snap.items.filter(i=>i.cat===cat&&i.qty!=='');if(!ci.length)return;
+    html+=`<div style="padding:10px 14px 4px"><div style="font-size:10px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:0.07em">${cat}</div></div>
+    <div class="rcol-head" style="border-top:1px solid #f0f0f0"><span>Item</span><span>Had</span><span>Par</span><span>Order</span></div>`;
+    ci.sort((a,b)=>(b.order??-1)-(a.order??-1)).forEach(item=>{
+      const o=item.order;
+      const bc=o===null?'b-ok':o>0?'b-low':'b-ok';
+      html+=`<div class="rrow"><span class="ritem">${item.name}</span>
+        <span class="rhave">${item.qty!==''?fmt(item.qty)+' '+item.unit:'—'}</span>
+        <span class="rneed">${item.par!==null?fmt(item.par)+' '+item.unit:'—'}</span>
+        <span class="rbadge ${bc}">${o===null?'—':o>0?`+${fmt(o)} ${item.unit}`:'OK'}</span></div>`;
+    });
+  });
+  return html;
+}
+
+function togH(idx){const b=document.getElementById('hbody-'+idx),c=document.getElementById('chev-'+idx);const o=b.classList.toggle('open');if(c)c.classList.toggle('open',o)}
+
+async function delSnap(idx){
+  if(!confirm('Delete this report from the server?'))return;
+  const snap=hist[idx];
+  try{await apiDeleteReport(snap.id);hist.splice(idx,1);renderHistory();}
+  catch{alert('Could not delete. Check connection.')}
+}
+
+function prtSnap(idx){
+  const snap=hist[idx];
+  let t=`${LOC_NAME} FOH — ORDER REPORT\n${snap.label} (${snap.day} · ${snap.par_type||snap.parType} pars)\nSaved: ${snap.time}\n${'='.repeat(60)}\n\n`;
+  CATS.forEach(cat=>{
+    const ci=snap.items.filter(i=>i.cat===cat);if(!ci.length)return;
+    t+=`${cat.toUpperCase()}\n${'-'.repeat(40)}\n`;
+    ci.forEach(i=>{const ol=i.order===null?'no par':i.order>0?`ORDER +${fmt(i.order)} ${i.unit}`:'OK';t+=`${i.name.padEnd(34)} Have: ${(fmt(i.qty)+' '+i.unit).padEnd(16)} ${ol}\n`});
+    t+='\n';
+  });
+  const w=window.open('','_blank');w.document.write(`<pre style="font-family:monospace;font-size:12px;padding:2rem;line-height:1.6;white-space:pre">${t}</pre>`);w.document.close();w.print();
+}
+
+function cpySnap(idx){
+  const snap=hist[idx];
+  let t=`${LOC_NAME} FOH — ORDER REPORT\n${snap.label} (${snap.day})\n\nTO ORDER:\n`;
+  CATS.forEach(cat=>{
+    const toOrd=snap.items.filter(i=>i.cat===cat&&i.order!==null&&i.order>0);if(!toOrd.length)return;
+    t+=`\n${cat}:\n`;toOrd.forEach(i=>{t+=`  • ${i.name}: +${fmt(i.order)} ${i.unit} (had ${fmt(i.qty)}, par ${fmt(i.par)})\n`});
+  });
+  navigator.clipboard.writeText(t).then(()=>alert('Copied!')).catch(()=>alert('Could not copy.'));
+}
+
+async function exportAll(){
+  const all=await apiLoadReports();
+  if(!all.length){alert('No history to export.');return}
+  let t=`${LOC_NAME} FOH — FULL HISTORY\nExported: ${brisNow().toLocaleString('en-AU')}\n${'='.repeat(70)}\n\n`;
+  all.forEach(snap=>{
+    t+=`${(snap.label||'').toUpperCase()} — ${snap.day} (${snap.par_type||snap.parType}) — ${snap.time}\n${'-'.repeat(50)}\n`;
+    const toOrd=snap.items.filter(i=>i.order!==null&&i.order>0);
+    if(toOrd.length){t+=`Items to order:\n`;toOrd.forEach(i=>{t+=`  • ${i.name}: +${fmt(i.order)} ${i.unit}\n`})}
+    else t+=`All stock sufficient\n`;
+    t+='\n';
+  });
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([t],{type:'text/plain'}));
+  a.download=`${LOC_NAME}_FOH_History_${brisNow().toISOString().slice(0,10)}.txt`;
+  a.click();
+}
+
+async function renderSettings(){
+  document.getElementById('settings-list').innerHTML='<div class="empty-state"><div class="spinner" style="margin:0 auto 12px"></div>Loading...</div>';
+  const serverItems=await apiLoadItems();
+  items=serverItems.map(i=>({...items.find(x=>x.id===i.id)||{},id:i.id,cat:i.cat,name:i.name,unit:i.unit||'',wdPar:i.wd_par||'',wePar:i.we_par||''}));
+  let html=`<div style="margin-bottom:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+    <span style="font-size:13px;font-weight:600">${items.length} items</span>
+    <button class="abtn" onclick="togAdd()" style="padding:7px 14px;font-size:12px">+ Add item</button>
+  </div>
+  <div id="add-form" style="display:none;margin-bottom:12px">
+    <div class="add-form">
+      <div class="fg"><label class="flbl">Name</label><input class="finput w-lg" id="fi-name" placeholder="Item name"></div>
+      <div class="fg"><label class="flbl">Unit</label><input class="finput w-sm" id="fi-unit" placeholder="Sleeves"></div>
+      <div class="fg"><label class="flbl">Category</label><select class="fselect" id="fi-cat">${CATS.map(c=>`<option>${c}</option>`).join('')}</select></div>
+      <div class="fg"><label class="flbl">Mon–Fri par</label><input class="finput w-sm" type="number" id="fi-wd" placeholder="0" min="0" step="0.5"></div>
+      <div class="fg"><label class="flbl">Sat–Sun par</label><input class="finput w-sm" type="number" id="fi-we" placeholder="0" min="0" step="0.5"></div>
+      <button class="abtn abtn-save" onclick="addItem()" style="padding:8px 16px;font-size:12px">Add</button>
+      <button class="abtn" onclick="togAdd()" style="padding:8px 12px;font-size:12px">Cancel</button>
+    </div>
+  </div>`;
+  CATS.forEach(cat=>{
+    const ci=items.filter(i=>i.cat===cat);if(!ci.length)return;
+    html+=`<div style="font-size:10px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:0.08em;margin:14px 0 7px 2px">${cat} (${ci.length})</div>
+    <div class="settings-card">
+      <div class="scol-head"><span>Item</span><span>Unit</span><span>Mon–Fri</span><span>Sat–Sun</span><span></span></div>`;
+    ci.forEach(item=>{
+      html+=`<div class="srow">
+        <span style="font-weight:500;font-size:12px;line-height:1.3">${item.name}</span>
+        <span style="font-size:11px;color:#aaa">${item.unit}</span>
+        <input class="sinput" type="number" min="0" step="0.5" value="${item.wdPar}" onchange="updPar(${item.id},'wd',this.value)">
+        <input class="sinput" type="number" min="0" step="0.5" value="${item.wePar}" onchange="updPar(${item.id},'we',this.value)">
+        <button class="dbtn" onclick="delItem(${item.id})">×</button>
+      </div>`;
+    });
+    html+=`</div>`;
+  });
+  document.getElementById('settings-list').innerHTML=html;
+}
+
+function togAdd(){const f=document.getElementById('add-form');if(f)f.style.display=f.style.display==='none'?'block':'none'}
+
+async function addItem(){
+  const name=document.getElementById('fi-name').value.trim();if(!name)return;
+  const newItem={cat:document.getElementById('fi-cat').value,name,unit:document.getElementById('fi-unit').value.trim()||'units',wd_par:document.getElementById('fi-wd').value,we_par:document.getElementById('fi-we').value};
+  try{
+    const id=await apiAddItem(newItem);
+    items.push({id,cat:newItem.cat,name:newItem.name,unit:newItem.unit,wdPar:newItem.wd_par,wePar:newItem.we_par,qty:''});
+    renderSettings();renderCount();
+  }catch{alert('Could not add item. Check connection.')}
+}
+
+async function delItem(id){
+  if(!confirm('Remove this item from this location?'))return;
+  try{await apiDeleteItem(id);items=items.filter(i=>i.id!==id);renderSettings();renderCount();}
+  catch{alert('Could not delete. Check connection.')}
+}
+
+async function updPar(id,type,v){
+  const item=items.find(i=>i.id===id);if(!item)return;
+  if(type==='wd')item.wdPar=v;else item.wePar=v;
+  try{await apiUpdateItem(id,{wd_par:item.wdPar,we_par:item.wePar,name:item.name,unit:item.unit});}
+  catch{setSyncStatus('err')}
+  renderCount();
+}
+
+function resetAll(){
+  if(!confirm('Reset all counts to blank?'))return;
+  items.forEach(i=>i.qty='');dirty=false;
+  scheduleSave();renderCount();
+  if(document.getElementById('tab-report').style.display!=='none')renderReport();
+}
+
+function printRpt(){
+  const bn=brisNow();
+  let t=`${LOC_NAME} FOH DAILY ORDERING SHEET\n${selDay} (${isWE(selDay)?'Weekend':'Weekday'} pars) — ${bn.toLocaleDateString('en-AU')}\n${'='.repeat(60)}\n\n`;
+  CATS.forEach(cat=>{
+    const ci=items.filter(i=>i.cat===cat);if(!ci.length)return;
+    t+=`${cat.toUpperCase()}\n${'-'.repeat(40)}\n`;
+    ci.forEach(item=>{const o=order(item),p=par(item),q=qty(item);t+=`${item.name.padEnd(34)} Have: ${(q!==null?fmt(q)+' '+item.unit:'—').padEnd(16)} ${o===null?'no par':o>0?`ORDER +${fmt(o)} ${item.unit}`:'OK'}\n`});
+    t+='\n';
+  });
+  const w=window.open('','_blank');w.document.write(`<pre style="font-family:monospace;font-size:12px;padding:2rem;line-height:1.6;white-space:pre">${t}</pre>`);w.document.close();w.print();
+}
+
+function copyRpt(){
+  let t=`${LOC_NAME} FOH — ORDER REPORT\n${selDay} (${isWE(selDay)?'Weekend':'Weekday'} pars) — ${brisNow().toLocaleDateString('en-AU')}\n\nTO ORDER:\n`;
+  CATS.forEach(cat=>{
+    const toOrd=items.filter(i=>i.cat===cat&&order(i)!==null&&order(i)>0);if(!toOrd.length)return;
+    t+=`\n${cat}:\n`;toOrd.forEach(i=>{t+=`  • ${i.name}: +${fmt(order(i))} ${i.unit} (have ${fmt(qty(i))}, need ${fmt(par(i))})\n`});
+  });
+  navigator.clipboard.writeText(t).then(()=>alert('Copied!')).catch(()=>alert('Could not copy.'));
+}
+
+function showTab(tab){
+  ['count','report','history','settings'].forEach(t=>{
+    document.getElementById('tab-'+t).style.display=t===tab?'block':'none';
+    document.getElementById('ntab-'+t).classList.toggle('active',t===tab);
+  });
+  document.getElementById('sticky-footer').style.display=tab==='count'?'block':'none';
+  if(tab==='report')renderReport();
+  if(tab==='history')renderHistory();
+  if(tab==='settings')renderSettings();
+}
+
+init();
+</script>
+</body>
+</html>
