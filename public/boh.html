@@ -254,7 +254,11 @@ function setSyncStatus(s){
 
 async function apiSaveCount(){
   setSyncStatus('saving');
-  try{await fetch(`${API}/count`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({day:selDay,items})});setSyncStatus('ok');}
+  try{await fetch(`${API}/count`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+  day:selDay,
+  date:new Date().toISOString(),
+  items
+})});setSyncStatus('ok');}
   catch{setSyncStatus('err')}
 }
 async function apiLoadCount(){try{const r=await fetch(`${API}/count`);return r.ok?await r.json():null;}catch{return null}}
