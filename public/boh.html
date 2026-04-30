@@ -82,6 +82,7 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#f2f2f0;color:#1a
 .rcol-head{display:grid;grid-template-columns:1fr 66px 66px 80px;gap:6px;padding:6px 14px;font-size:10px;color:#aaa;font-weight:700;border-bottom:1px solid #f0f0f0;text-transform:uppercase;letter-spacing:0.05em}
 .rrow{display:grid;grid-template-columns:1fr 66px 66px 80px;gap:6px;align-items:center;padding:10px 14px;border-bottom:1px solid #f8f8f8;font-size:12px}
 .rrow:last-child{border-bottom:none}
+.rrow.needs-order{background:#fffdf8}
 .ritem{font-weight:500;font-size:12px;line-height:1.3}
 .rhave,.rneed{color:#888;font-size:12px}
 .rbadge{font-size:11px;font-weight:600;padding:3px 8px;border-radius:8px;white-space:nowrap;display:inline-block;text-align:center}
@@ -254,11 +255,7 @@ function setSyncStatus(s){
 
 async function apiSaveCount(){
   setSyncStatus('saving');
-  try{await fetch(`${API}/count`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
-  day:selDay,
-  date:new Date().toISOString(),
-  items
-})});setSyncStatus('ok');}
+  try{await fetch(`${API}/count`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({day:selDay,items,updated_at:new Date().toISOString()})});setSyncStatus('ok');}
   catch{setSyncStatus('err')}
 }
 async function apiLoadCount(){try{const r=await fetch(`${API}/count`);return r.ok?await r.json():null;}catch{return null}}
@@ -279,23 +276,18 @@ async function init(){
     const countData=await apiLoadCount();
     const qtyMap={};
     if(countData&&countData.items){
-  // Check if the saved count is from a previous Brisbane date
-  const todayBris=brisNow().toLocaleDateString('en-AU');
-  const savedDate=countData.updated_at
-    ? new Date(countData.updated_at).toLocaleDateString('en-AU',{timeZone:'Australia/Brisbane'})
-    : null;
-
-  if(savedDate && savedDate === todayBris){
-    // Same day — restore the saved counts
-    countData.items.forEach(i=>qtyMap[i.id]=i.qty);
-    if(countData.day)selDay=countData.day;
-  } else {
-    // New day — start fresh, but keep history
-    // Just use today's day, quantities stay blank
-    selDay = brisDay();
-    console.log('New day detected — counts reset automatically');
-  }
-}
+      // Check if saved count is from today (Brisbane time)
+      const todayBris=brisNow().toLocaleDateString('en-AU');
+      const savedDate=countData.updated_at
+        ? new Date(countData.updated_at).toLocaleDateString('en-AU',{timeZone:'Australia/Brisbane'})
+        : null;
+      if(savedDate && savedDate===todayBris){
+        countData.items.forEach(i=>qtyMap[i.id]=i.qty);
+        if(countData.day)selDay=countData.day;
+      } else {
+        selDay=brisDay();
+      }
+    }
     items=serverItems.map(i=>({id:i.id,cat:i.cat,name:i.name,unit:i.unit||'',wdPar:i.wd_par||'',wePar:i.we_par||'',qty:qtyMap[i.id]!==undefined?qtyMap[i.id]:''}));
     document.getElementById('loading-count').style.display='none';
     document.getElementById('count-inner').style.display='block';
@@ -426,18 +418,33 @@ function renderReport(){
     const isF=cat==='Freezer Count';
     const catOrd=ci.filter(i=>{const o=order(i);return o!==null&&o>0});
     const catMiss=ci.filter(i=>required(i)&&!counted(i));
+    const needsActionCount=isF?0:catOrd.length+catMiss.length;
+    // Sort: missing first, then needs ordering (desc), then OK — freezer stays in original order
+    const sorted=isF?ci:[...ci].sort((a,b)=>{
+      const aMiss=required(a)&&!counted(a), bMiss=required(b)&&!counted(b);
+      if(aMiss&&!bMiss)return -1; if(!aMiss&&bMiss)return 1;
+      const oA=order(a)??-1, oB=order(b)??-1;
+      if(oA>0&&oB<=0)return -1; if(oA<=0&&oB>0)return 1;
+      return oB-oA;
+    });
     html+=`<div class="report-card">
       <div class="rcard-head"><span class="rcat-name">${cat}</span>
-        <span class="rcat-count">${isF?'Count reference':`${catOrd.length} to order`}${catMiss.length?` · <span style="color:#E24B4A">${catMiss.length} missing</span>`:''}</span>
+        <span class="rcat-count">${isF?'Count reference':needsActionCount>0?`<span style="color:#BA7517;font-weight:700">${needsActionCount} to action</span>`:'<span style="color:#639922">All OK ✓</span>'}${catMiss.length?` · <span style="color:#E24B4A">${catMiss.length} missing</span>`:''}</span>
       </div>
+      ${!isF&&needsActionCount>0?`<div style="background:#fffbf0;border-bottom:1px solid #f0f0f0;padding:5px 14px;font-size:10px;font-weight:700;color:#BA7517;text-transform:uppercase;letter-spacing:0.06em">↑ Needs ordering</div>`:''}
       <div class="rcol-head"><span>Item</span><span>Have</span><span>Need</span><span>${isF?'Count':'Order'}</span></div>`;
-    const sorted=isF?ci:[...ci].sort((a,b)=>(order(b)??-1)-(order(a)??-1));
+    let shownDivider=false;
     sorted.forEach(item=>{
       const o=order(item),p=par(item),q=qty(item),st=status(item);
       const notDone=required(item)&&!counted(item);
+      const needsOrder=!isF&&(notDone||(o!==null&&o>0));
+      if(!isF&&!needsOrder&&!shownDivider&&needsActionCount>0){
+        shownDivider=true;
+        html+=`<div style="background:#f9fdf5;border-top:1px solid #e8e8e8;border-bottom:1px solid #f0f0f0;padding:5px 14px;font-size:10px;font-weight:700;color:#639922;text-transform:uppercase;letter-spacing:0.06em">✓ Sufficient stock</div>`;
+      }
       const bc=notDone?'b-crit':isF?'b-neu':st==='crit'?'b-crit':st==='low'?'b-low':'b-ok';
       const ol=notDone?'Not entered':isF?(q!==null?fmt(q):'—'):(o===null?'—':o>0?`+${fmt(o)} ${item.unit}`:'OK');
-      html+=`<div class="rrow"><span class="ritem">${item.name}</span>
+      html+=`<div class="rrow ${needsOrder?'needs-order':''}"><span class="ritem">${item.name}</span>
         <span class="rhave">${q!==null?fmt(q)+(item.unit?' '+item.unit:''):'—'}</span>
         <span class="rneed">${p!==null?fmt(p)+(item.unit?' '+item.unit:''):'—'}</span>
         <span class="rbadge ${bc}">${ol}</span></div>`;

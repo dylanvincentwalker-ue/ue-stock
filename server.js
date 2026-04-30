@@ -283,13 +283,14 @@ app.delete('/api/:location/:list/items/:id', (req, res) => {
 
 // Save current count (auto-saves every change)
 app.post('/api/:location/:list/count', (req, res) => {
-  const { day, date, items } = req.body;
+  const { day, items, updated_at } = req.body;
+  const timestamp = updated_at || new Date().toISOString();
   db.prepare(`
     INSERT INTO current_counts (location, list_type, day, items, updated_at)
     VALUES (?, ?, ?, ?, ?)
     ON CONFLICT(location, list_type) DO UPDATE SET
       day = excluded.day, items = excluded.items, updated_at = excluded.updated_at
-  `).run(req.params.location, req.params.list, day, JSON.stringify(items), date || new Date().toISOString());
+  `).run(req.params.location, req.params.list, day, JSON.stringify(items), timestamp);
   res.json({ ok: true });
 });
 
@@ -298,7 +299,7 @@ app.get('/api/:location/:list/count', (req, res) => {
   const row = db.prepare('SELECT * FROM current_counts WHERE location = ? AND list_type = ?')
     .get(req.params.location, req.params.list);
   if (!row) return res.json(null);
-  res.json({ day: row.day, items: JSON.parse(row.items) });
+  res.json({ day: row.day, items: JSON.parse(row.items), updated_at: row.updated_at });
 });
 
 // Save finalised report
