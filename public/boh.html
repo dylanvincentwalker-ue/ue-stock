@@ -274,7 +274,24 @@ async function init(){
     const serverItems=await apiLoadItems();
     const countData=await apiLoadCount();
     const qtyMap={};
-    if(countData&&countData.items){countData.items.forEach(i=>qtyMap[i.id]=i.qty);if(countData.day)selDay=countData.day}
+    if(countData&&countData.items){
+  // Check if the saved count is from a previous Brisbane date
+  const todayBris=brisNow().toLocaleDateString('en-AU');
+  const savedDate=countData.updated_at
+    ? new Date(countData.updated_at).toLocaleDateString('en-AU',{timeZone:'Australia/Brisbane'})
+    : null;
+
+  if(savedDate && savedDate === todayBris){
+    // Same day — restore the saved counts
+    countData.items.forEach(i=>qtyMap[i.id]=i.qty);
+    if(countData.day)selDay=countData.day;
+  } else {
+    // New day — start fresh, but keep history
+    // Just use today's day, quantities stay blank
+    selDay = brisDay();
+    console.log('New day detected — counts reset automatically');
+  }
+}
     items=serverItems.map(i=>({id:i.id,cat:i.cat,name:i.name,unit:i.unit||'',wdPar:i.wd_par||'',wePar:i.we_par||'',qty:qtyMap[i.id]!==undefined?qtyMap[i.id]:''}));
     document.getElementById('loading-count').style.display='none';
     document.getElementById('count-inner').style.display='block';
