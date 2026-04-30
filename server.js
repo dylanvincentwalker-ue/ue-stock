@@ -283,13 +283,13 @@ app.delete('/api/:location/:list/items/:id', (req, res) => {
 
 // Save current count (auto-saves every change)
 app.post('/api/:location/:list/count', (req, res) => {
-  const { day, items } = req.body;
+  const { day, date, items } = req.body;
   db.prepare(`
     INSERT INTO current_counts (location, list_type, day, items, updated_at)
     VALUES (?, ?, ?, ?, ?)
     ON CONFLICT(location, list_type) DO UPDATE SET
       day = excluded.day, items = excluded.items, updated_at = excluded.updated_at
-  `).run(req.params.location, req.params.list, day, JSON.stringify(items), new Date().toISOString());
+  `).run(req.params.location, req.params.list, day, JSON.stringify(items), date || new Date().toISOString());
   res.json({ ok: true });
 });
 
